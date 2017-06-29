@@ -1,0 +1,44 @@
+---
+ignition:
+  version: 2.0.0
+storage:
+  files:
+      - path: /etc/hostname
+        mode: 420
+        filesystem: root
+        contents:
+          inline: |
+            {{.hostname}}         
+      - path: /etc/coreos/update.conf
+        mode: 420
+        filesystem: root
+        contents:
+          inline: |
+            GROUP=stable
+            SERVER={{.coreroller_endpoint}}
+
+systemd:
+  units:
+    - name: systemd-networkd.service
+      dropins:
+        - name: 10-debug.conf
+          contents: |
+            [Service]
+            Environment=SYSTEMD_LOG_LEVEL=debug
+networkd:
+  units:
+    - name: 00-static.network
+      contents: |
+        [Match]
+        Name={{.networkd_name}}
+        [Network]
+        Gateway={{.networkd_gateway}}
+        Address={{.networkd_address}}
+        LinkLocalAddressing=no
+        IPv6AcceptRA=no
+passwd:
+  users:
+    - name: core
+      ssh_authorized_keys:
+        - {{.ssh_authorized_key}}
+                 
