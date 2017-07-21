@@ -16,15 +16,77 @@ storage:
           inline: |
             GROUP=stable
             SERVER={{.coreroller_endpoint}}
+      - path: /etc/sssd/sssd.conf
+        mode: 420
+        filesystem: root
+        contents:
+          inline: |
+            [sssd]
+            config_file_version = 2
+            services = nss, pam, sudo
+            domains = Pictet
+            debug_level = 2
+            [nss]
+            filter_groups = root
+            filter_users = root, ldap
+            debug_level = 2
+            [pam]
+            debug_level = 2
+            [domain/Pictet]
+            auth_provider = ldap
+            id_provider = ldap
+            ldap_access_filter = objectClass=posixAccount
+            ldap_group_member = uniquemember
+            ldap_schema = rfc2307bis
+            ldap_netgroup_search_base = ou=netgroup,o=Unix
+            ldap_search_base = o=Unix
+            ldap_sudo_search_base = ou=sudoers,o=Unix
+            ldap_tls_reqcert = never
+            ldap_uri = ldaps://prd04ldap.gva.pictet.com,ldaps://prd05ldap.gva.pictet.com
+            ldap_user_gid_number = linuxgidnumber
+            ldap_user_home_directory = linuxhomeDirectory
+            ldap_user_shell = loginshellLinux
+            sudo_provider = ldap
+            debug_level = 2
+            [sudo]
+            debug_level = 2            
+      - path: /etc/ntpd.conf
+        mode: 420
+        filesystem: root
+        contents:
+          inline: |
+            tinker panic 0
+            server p01ntp01.gva.pictet.com iburst
+            server p01ntp02.gva.pictet.com iburst
+            server p01ntp03.gva.pictet.com iburst
+            server p01ntp05.gva.pictet.com iburst
+            driftfile /var/lib/ntp/drift/ntp.drift
+            logfile /var/log/ntp
+            restrict 127.0.0.1
+            restrict -6 default kod nomodify notrap nopeer noquery
+            restrict default kod nomodify notrap nopeer noquery      
 
 systemd:
   units:
-    - name: systemd-networkd.service
-      dropins:
-        - name: 10-debug.conf
-          contents: |
-            [Service]
-            Environment=SYSTEMD_LOG_LEVEL=debug
+    - name: settimezone.service
+      enable: true
+      contents: |
+        [Unit]
+        Description=Set the time zone
+ 
+        [Service]
+        ExecStart=/usr/bin/timedatectl set-timezone Europe/Zurich
+        RemainAfterExit=yes
+        Type=oneshot
+        [Install]
+        WantedBy=multi-user.target        
+    - name: systemd-timesyncd.service
+      mask: true
+    - name: ntpd.service
+      enable: true
+    - name: sssd.service
+      enable: true
+      
 networkd:
   units:
     - name: 00-static.network
